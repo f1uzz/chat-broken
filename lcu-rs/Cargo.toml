@@ -1,0 +1,18 @@
+[package]
+authors = ["fluzz"]
+edition = "2018"
+name    = "lcu-rs"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+base64      = "0.12.3"
+reqwest     = { version = "0.10.6", features = ["json"] }
+serde       = "1.0.114"
+serde_json  = "1.0.56"
+sysinfo     = "0.14.8"
+thiserror   = "1.0.20"
+
+[dev-dependencies]
+tokio = { version = "0.2.21", features = ["macros"] }
