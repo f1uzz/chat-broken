@@ -2,7 +2,7 @@ use std::io::{self, Stdin, Stdout, Write};
 
 mod error;
 use error::ChatBrokenError;
-use lcu_rs::Lcu;
+use lcu::Lcu;
 
 use serde_json::{json, Value};
 use unicode_normalization::UnicodeNormalization;

@@ -1,4 +1,4 @@
-use lcu_rs::ApiError;
+use lcu::ApiError;
 use reqwest::Error as ReqwestError;
 use std::io::Error as IoError;
 use std::num::ParseIntError;
