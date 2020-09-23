@@ -1,11 +1,10 @@
 use std::io::{self, Stdin, Stdout, Write};
 
-mod error;
-use error::ChatBrokenError;
-use lcu::Lcu;
-
+use anyhow::{Context, Error, Result};
 use serde_json::{json, Value};
 use unicode_normalization::UnicodeNormalization;
+
+use lcu::Lcu;
 
 #[derive(Debug)]
 struct Friend {
@@ -15,7 +14,7 @@ struct Friend {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), ChatBrokenError> {
+async fn main() -> Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
 
@@ -35,39 +34,27 @@ async fn main() -> Result<(), ChatBrokenError> {
         .await?;
     let friends_list = friends_json
         .as_array()
-        .ok_or(ChatBrokenError::InvalidDataError(
-            "friends list is not array",
-        ))?
+        .context("friends list is not array")?
         .iter()
         .map(|friend_json| {
-            let friend = friend_json
-                .as_object()
-                .ok_or(ChatBrokenError::InvalidDataError("friend is not object"))?;
-            Ok::<Friend, ChatBrokenError>(Friend {
+            let friend = friend_json.as_object().context("friend is not object")?;
+            Ok::<Friend, Error>(Friend {
                 name: friend
                     .get("name")
-                    .ok_or(ChatBrokenError::InvalidDataError("no name in friend"))?
+                    .context("no name in friend")?
                     .as_str()
-                    .ok_or(ChatBrokenError::InvalidDataError("name is not string"))?
+                    .context("name is not string")?
                     .into(),
                 summoner_id: friend
                     .get("summonerId")
-                    .ok_or(ChatBrokenError::InvalidDataError(
-                        "no summoner id in friend",
-                    ))?
+                    .context("no summoner id in friend")?
                     .as_u64()
-                    .ok_or(ChatBrokenError::InvalidDataError(
-                        "summoner id is not number",
-                    ))?,
+                    .context("summoner id is not number")?,
                 availability: friend
                     .get("availability")
-                    .ok_or(ChatBrokenError::InvalidDataError(
-                        "no availability in friend",
-                    ))?
+                    .context("no availability in friend")?
                     .as_str()
-                    .ok_or(ChatBrokenError::InvalidDataError(
-                        "availability is not string",
-                    ))?
+                    .context("availability is not string")?
                     .into(),
             })
         })
@@ -85,7 +72,7 @@ async fn main_loop(
     lcu: &Lcu,
     stdin: &Stdin,
     stdout: &mut Stdout,
-) -> Result<(), ChatBrokenError> {
+) -> Result<()> {
     println!("{}", "-".repeat(25));
     println!("Search for the name of player to invite and press enter, or press enter without typing anything to accept pending invitations:");
     let mut buf = String::new();
@@ -123,9 +110,9 @@ async fn main_loop(
             .get(
                 buf.parse::<usize>()?
                     .checked_sub(1)
-                    .ok_or(ChatBrokenError::InvalidIndexError)?,
+                    .context("invalid index")?,
             )
-            .ok_or(ChatBrokenError::InvalidIndexError)?;
+            .context("invalid index")?;
 
         let r = lcu
             .post(
@@ -146,20 +133,16 @@ async fn main_loop(
             .await?;
         let invite_ids = invites_json
             .as_array()
-            .ok_or(ChatBrokenError::InvalidDataError("invites is not array"))?
+            .context("invites is not array")?
             .iter()
             .map(|inv| {
-                Ok::<String, ChatBrokenError>(
+                Ok::<String, Error>(
                     inv.as_object()
-                        .ok_or(ChatBrokenError::InvalidDataError("invite is not object"))?
+                        .context("invite is not object")?
                         .get("invitationId")
-                        .ok_or(ChatBrokenError::InvalidDataError(
-                            "no invitation id in invite",
-                        ))?
+                        .context("no invitation id in invite")?
                         .as_str()
-                        .ok_or(ChatBrokenError::InvalidDataError(
-                            "invitation id is not string",
-                        ))?
+                        .context("invitation id is not string")?
                         .into(),
                 )
             })
