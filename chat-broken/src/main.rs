@@ -72,7 +72,7 @@ async fn main_loop(
                 possibilities.push(friend);
             }
         }
-        if possibilities.len() == 0 {
+        if possibilities.is_empty() {
             println!("No matches found");
             return Ok(());
         }
