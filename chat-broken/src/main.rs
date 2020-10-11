@@ -1,16 +1,24 @@
 use std::io::{self, Stdin, Stdout, Write};
 
-use anyhow::{Context, Error, Result};
-use serde_json::{json, Value};
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use unicode_normalization::UnicodeNormalization;
 
 use lcu::Lcu;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 struct Friend {
     name: String,
+    #[serde(rename(deserialize = "summonerId"))]
     summoner_id: u64,
     availability: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Invite {
+    #[serde(rename(deserialize = "invitationId"))]
+    invitation_id: String,
 }
 
 #[tokio::main]
@@ -27,39 +35,11 @@ async fn main() -> Result<()> {
             panic!()
         }
     };
-    let friends_json = lcu
+    let friends_list = lcu
         .get("/lol-chat/v1/friends")
         .await?
-        .json::<Value>()
+        .json::<Vec<Friend>>()
         .await?;
-    let friends_list = friends_json
-        .as_array()
-        .context("friends list is not array")?
-        .iter()
-        .map(|friend_json| {
-            let friend = friend_json.as_object().context("friend is not object")?;
-            Ok::<Friend, Error>(Friend {
-                name: friend
-                    .get("name")
-                    .context("no name in friend")?
-                    .as_str()
-                    .context("name is not string")?
-                    .into(),
-                summoner_id: friend
-                    .get("summonerId")
-                    .context("no summoner id in friend")?
-                    .as_u64()
-                    .context("summoner id is not number")?,
-                availability: friend
-                    .get("availability")
-                    .context("no availability in friend")?
-                    .as_str()
-                    .context("availability is not string")?
-                    .into(),
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
     loop {
         if let Err(e) = main_loop(&friends_list, &lcu, &stdin, &mut stdout).await {
             println!("Error: {}", e);
@@ -126,32 +106,22 @@ async fn main_loop(
             println!("Failed to invite {}", friend.name);
         }
     } else {
-        let invites_json = lcu
+        let invites = lcu
             .get("/lol-lobby/v2/received-invitations")
             .await?
-            .json::<Value>()
+            .json::<Vec<Invite>>()
             .await?;
-        let invite_ids = invites_json
-            .as_array()
-            .context("invites is not array")?
-            .iter()
-            .map(|inv| {
-                Ok::<String, Error>(
-                    inv.as_object()
-                        .context("invite is not object")?
-                        .get("invitationId")
-                        .context("no invitation id in invite")?
-                        .as_str()
-                        .context("invitation id is not string")?
-                        .into(),
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        for invite_id in invite_ids {
+        if invites.is_empty() {
+            println!("No invites found");
+        }
+        for invite in invites {
             let r = lcu
                 .post(
-                    &format!("/lol-lobby/v2/received-invitations/{}/accept", invite_id),
-                    &json!({ "invitationId": invite_id }),
+                    &format!(
+                        "/lol-lobby/v2/received-invitations/{}/accept",
+                        invite.invitation_id
+                    ),
+                    &json!({ "invitationId": invite.invitation_id }),
                 )
                 .await?;
             if r.status().is_success() {
